@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Button, Alert, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, Button, Alert, TextInput, TouchableOpacity ,StyleSheet} from 'react-native';
 import Svg, { Circle, Line, Text as SvgText } from 'react-native-svg';
 import graphData from './assets/graph.json';
+import Login from './screens/Login';
+import { app } from "./src/firebaseConfig"; // Adjust the path based on your project structure
+
+
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+
 
 /**
  * Graph component to visualize and interact with graph data.
@@ -27,6 +35,79 @@ const Graph = () => {
   const [minWeight, setMinWeight] = useState('');
   const [maxWeight, setMaxWeight] = useState('');
   const [mode, setMode] = useState(''); // '' | 'student' | 'teacher'
+  const [user, setUser] = useState(null);
+  
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false); // To toggle between login and signup
+
+  // Function to save the user in AsyncStorage
+  const saveUser = async (user) => {
+    try {
+      await AsyncStorage.setItem("user", JSON.stringify(user));
+    } catch (error) {
+      console.error("Error saving user:", error);
+    }
+  };
+
+  // Function to get the user from AsyncStorage
+  const getUser = async () => {
+    try {
+      const user = await AsyncStorage.getItem("user");
+      return user ? JSON.parse(user) : null;
+    } catch (error) {
+      console.error("Error fetching user:", error);
+    }
+  };
+
+  // Function to handle login
+  const handleLogin = async () => {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      saveUser(userCredential.user); // Save user details
+      setUser(userCredential.user); // Update the user state
+    } catch (error) {
+      Alert.alert("Login Error", error.message);
+    }
+  };
+
+  // Function to handle signup
+  const handleSignUp = async () => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      saveUser(userCredential.user); // Save user details
+      setUser(userCredential.user); // Update the user state
+    } catch (error) {
+      Alert.alert("Signup Error", error.message);
+    }
+  };
+
+  // Function to handle logout
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setUser(null);
+      setMode(null);
+      await AsyncStorage.removeItem("user"); // Clear user data from AsyncStorage
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
+  };
+
+  // Retrieve the stored user on app load
+  useEffect(() => {
+    const fetchUser = async () => {
+      const storedUser = await getUser();
+      if (storedUser) setUser(storedUser);
+    };
+    fetchUser();
+  }, []);
+
+  // const handleLogout = async () => {
+  //   await AsyncStorage.removeItem('user');
+  //   setUser(null);
+  // };
+
 
   // Load the current level when the component mounts
   useEffect(() => {
@@ -266,7 +347,6 @@ const Graph = () => {
 
   /**
    * Displays the running total weight by adding the additional weight.
-   * @param {number} additionalWeight - The weight to add to the total.
    */
   const displayRunningTotal = (additionalWeight) => {
     setTotalWeight(prevWeight => prevWeight + additionalWeight);
@@ -365,6 +445,7 @@ const Graph = () => {
     setOptimalPathWeight(weight);
   };
 
+
   /**
    * Undoes the last selected edge, reverting the path to its previous state.
    */
@@ -396,128 +477,186 @@ const Graph = () => {
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      {/* Home Page */}
-      {!mode ? (
-        <View style={{ marginBottom: 20, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 20 }}>Select Mode</Text>
-          <Button title="Student Mode" onPress={() => setMode('student')} />
-          <View style={{ marginVertical: 10 }} />
-          <Button title="Teacher Mode" onPress={() => setMode('teacher')} />
-        </View>
+      {/* Authentication Screens */}
+      {!user ? (
+        authMode === 'login' ? (
+          <View style={{ alignItems: 'center' }}>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 20 }}>Login</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+            <Button title="Login" onPress={handleLogin} />
+            <TouchableOpacity onPress={() => setAuthMode('signup')}>
+              <Text style={{ marginTop: 10, color: 'blue' }}>Don't have an account? Sign up</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={{ alignItems: 'center' }}>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 20 }}>Signup</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+            <Button title="Sign Up" onPress={handleSignup} />
+            <TouchableOpacity onPress={() => setAuthMode('login')}>
+              <Text style={{ marginTop: 10, color: 'blue' }}>Already have an account? Login</Text>
+            </TouchableOpacity>
+          </View>
+        )
       ) : (
-        /* Game UI */
-        <Svg height="400" width="400">
-          {edges.map((edge, index) => {
-            const startNode = nodes.find(n => n.id === edge.from);
-            const endNode = nodes.find(n => n.id === edge.to);
-            const midX = (startNode.x + endNode.x) / 2;
-            const midY = (startNode.y + endNode.y) / 2;
+        <>
+          {/* Mode Selection */}
+          {!mode ? (
+            <View style={{ marginBottom: 20, justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 20 }}>Select Mode</Text>
+              <Button title="Student Mode" onPress={() => setMode('student')} />
+              <View style={{ marginVertical: 10 }} />
+              <Button title="Teacher Mode" onPress={() => setMode('teacher')} />
+              <Button title="Logout" onPress={handleLogout} />
+            </View>
+          ) : (
+            /* Game UI */
+            <Svg height="400" width="400">
+              {edges.map((edge, index) => {
+                const startNode = nodes.find(n => n.id === edge.from);
+                const endNode = nodes.find(n => n.id === edge.to);
+                const midX = (startNode.x + endNode.x) / 2;
+                const midY = (startNode.y + endNode.y) / 2;
 
-            return (
-              <React.Fragment key={index}>
-                <Line
-                  x1={startNode.x}
-                  y1={startNode.y}
-                  x2={endNode.x}
-                  y2={endNode.y}
-                  stroke={isEdgeSelected(edge.from, edge.to) ? 'green' : 'yellow'}
-                  strokeWidth={isEdgeSelected(edge.from, edge.to) ? '3' : '2'}
+                return (
+                  <React.Fragment key={index}>
+                    <Line
+                      x1={startNode.x}
+                      y1={startNode.y}
+                      x2={endNode.x}
+                      y2={endNode.y}
+                      stroke={'yellow'}
+                      strokeWidth={2}
+                    />
+                    <SvgText
+                      x={midX}
+                      y={midY - 10}
+                      fill="black"
+                      fontSize="10"
+                      fontWeight="bold"
+                    >
+                      {edge.weight}
+                    </SvgText>
+                  </React.Fragment>
+                );
+              })}
+
+              {nodes.map(node => (
+                <Circle
+                  key={node.id}
+                  cx={node.x}
+                  cy={node.y}
+                  r={20}
+                  stroke="gray"
+                  strokeWidth="2"
+                  fill={node.id === 'A' ? 'green' : node.id === 'D' ? 'red' : 'blue'}
                 />
+              ))}
+              {nodes.map(node => (
                 <SvgText
-                  x={midX}
-                  y={midY - 10}
-                  fill="black"
-                  fontSize="10"
+                  key={node.id + '-label'}
+                  x={node.x}
+                  y={node.y + 5}
+                  fill="white"
+                  fontSize="12"
                   fontWeight="bold"
                 >
-                  {edge.weight}
+                  {node.id}
                 </SvgText>
-              </React.Fragment>
-            );
-          })}
+              ))}
+            </Svg>
+          )}
 
-          {nodes.map(node => (
-            <Circle
-              key={node.id}
-              cx={node.x}
-              cy={node.y}
-              r={20}
-              stroke="gray"
-              strokeWidth="2"
-              fill={node.id === startNode ? 'green' : node.id === endNode ? 'red' : 'blue'}
-              onPress={() => handleNodeClick(node.id)}
-            />
-          ))}
-          {nodes.map(node => (
-            <SvgText
-              key={node.id + '-label'}
-              x={node.x}
-              y={node.y + 5}
-              fill="white"
-              fontSize="12"
-              fontWeight="bold"
-            >
-              {node.id}
-            </SvgText>
-          ))}
-        </Svg>
-      )}
-
-      {/* Teacher Mode UI */}
-      {mode === 'teacher' && !gameOver && (
-        <View style={{ flexDirection: 'column', alignItems: 'center', marginBottom: 10 }}>
-          <TextInput
-            style={{ borderWidth: 1, padding: 5, width: 80, marginBottom: 5 }}
-            placeholder="Min Weight"
-            keyboardType="numeric"
-            value={minWeight}
-            onChangeText={text => setMinWeight(text)}
-          />
-          <TextInput
-            style={{ borderWidth: 1, padding: 5, width: 80, marginBottom: 5 }}
-            placeholder="Max Weight"
-            keyboardType="numeric"
-            value={maxWeight}
-            onChangeText={text => setMaxWeight(text)}
-          />
-          <Button title="Generate New Weights" onPress={generateRandomEdges} />
-        </View>
-      )}
-
-      {/* Common Game Controls */}
-      {mode && (
-        <>
-          <Text style={{ marginTop: 10 }}>Total Weight: {totalWeight}</Text>
-          <Text style={{ marginTop: 10 }}>{message}</Text>
-
-          {gameOver && (
-            <View style={{ marginVertical: 20 }}>
-              <Button title={message.includes('Bravo') ? "Next Level" : "Play Again"} onPress={playAgainOrNextLevel} />
+          {/* Teacher Mode UI */}
+          {mode === 'teacher' && !gameOver && (
+            <View style={{ flexDirection: 'column', alignItems: 'center', marginBottom: 10 }}>
+              <TextInput
+                style={styles.input}
+                placeholder="Min Weight"
+                keyboardType="numeric"
+                value={minWeight}
+                onChangeText={setMinWeight}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Max Weight"
+                keyboardType="numeric"
+                value={maxWeight}
+                onChangeText={setMaxWeight}
+              />
+              <Button title="Generate New Weights" onPress={() => {}} />
             </View>
           )}
 
-          <Button title="Undo" onPress={undo} />
-          <Button title="Check Path" onPress={checkPath} />
-          <Button title="Reset Graph" onPress={resetGraph} />
+          {/* Game Controls */}
+          {mode && (
+            <>
+              <Text style={{ marginTop: 10 }}>Total Weight: {totalWeight}</Text>
+              <Text style={{ marginTop: 10 }}>{message}</Text>
+
+              {gameOver && (
+                <View style={{ marginVertical: 20 }}>
+                  <Button title={message.includes('Bravo') ? "Next Level" : "Play Again"} onPress={() => {}} />
+                </View>
+              )}
+
+              <Button title="Undo" onPress={() => {}} />
+              <Button title="Check Path" onPress={() => {}} />
+              <Button title="Reset Graph" onPress={() => {}} />
+            </>
+          )}
+
+          {/* Home Button */}
+          <TouchableOpacity
+            onPress={() => {}}
+            style={styles.homeButton}
+          >
+            <Text>Home</Text>
+          </TouchableOpacity>
         </>
       )}
-
-      {/* Home Button */}
-      <TouchableOpacity
-        onPress={goHome}
-        style={{
-          position: 'absolute',
-          bottom: 20,
-          left: 20,
-          padding: 10,
-          borderRadius: 5,
-          backgroundColor: 'lightgray',
-        }}
-      >
-        <Text>Home</Text>
-      </TouchableOpacity>
     </View>
   );
 };
+const styles = StyleSheet.create({
+  input: {
+    borderWidth: 1,
+    padding: 5,
+    width: 80,
+    marginBottom: 5,
+  },
+  homeButton: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    padding: 10,
+    borderRadius: 5,
+    backgroundColor: 'lightgray',
+  },
+});
 
 export default Graph;
