@@ -80,6 +80,4 @@ After setting up the project, you can start working on the game's features, such
 
 This project is licensed under the MIT License.
 
----
 
-You can update the `README.md` file in your repository with the above content. If you need further assistance, let me know!
