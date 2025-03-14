@@ -3,7 +3,7 @@
 
 ## Overview
 
-This project is a mobile game developed using React Native (Expo) that teaches children aged 7 to 8 years old how to find the shortest path in a graph. The game is designed to be educational and engaging, helping young players develop problem-solving skills through interactive gameplay.
+This project is a mobile game developed using React Native (Expo) that teaches children aged 7 to 8 years old how to find the shortest path in a graph. The game is designed to be educational and engaging.
 
 ## Requirements
 
@@ -40,7 +40,7 @@ Use Git to clone the project repository:
 
 ```bash
 git clone https://github.com/jigs1188/ShortestPathGame.git
-cd shortest-path-game
+cd ShortestPathGame
 ```
 
 ### 4. Install Dependencies
@@ -74,8 +74,12 @@ This command will open the Expo DevTools in your browser, where you can manage y
 
 ## Next Steps
 
-After setting up the project, you can start working on the game's features, such as interactive graph rendering, pathfinding algorithms, and user interface improvements. The current phase involves manually solving the shortest path problem, with plans to implement more complex algorithms in future updates.
+After setting up the project, you can start working on the game's features, such as interactive graph rendering, pathfinding algorithms, and user interface improvements. The current phase involves implementing core game mechanics and enhancing user experience.
 
 ## License
 
 This project is licensed under the MIT License.
+
+---
+
+You can update the `README.md` file in your repository with the above content. If you need further assistance, let me know!
